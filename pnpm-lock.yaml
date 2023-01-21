@@ -2,7 +2,6 @@ lockfileVersion: 5.4
 
 specifiers:
   '@next/font': 13.1.2
-  '@react-oauth/google': ^0.6.0
   '@types/node': 18.11.18
   '@types/react': 18.0.27
   '@types/react-dom': 18.0.10
@@ -21,7 +20,6 @@ specifiers:
 
 dependencies:
   '@next/font': 13.1.2
-  '@react-oauth/google': 0.6.0_biqbaboplfbrettd7655fr4n2y
   '@types/node': 18.11.18
   '@types/react': 18.0.27
   '@types/react-dom': 18.0.10
@@ -249,16 +247,6 @@ packages:
       picocolors: 1.0.0
       tiny-glob: 0.2.9
       tslib: 2.4.1
-    dev: false
-
-  /@react-oauth/google/0.6.0_biqbaboplfbrettd7655fr4n2y:
-    resolution: {integrity: sha512-F+VtUk40C5zjL/E3VW5/nsIfm7gmad4HgpGjW3shHqsL6hopOEIncWIGlEzKs2H/hlZw5mHkyq2ONmw5TI2j/g==}
-    peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-    dependencies:
-      react: 18.2.0
-      react-dom: 18.2.0_react@18.2.0
     dev: false
 
   /@rushstack/eslint-patch/1.2.0:
