@@ -21,6 +21,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'indozone-dev-supertal.s3.ap-southeast-1.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 }

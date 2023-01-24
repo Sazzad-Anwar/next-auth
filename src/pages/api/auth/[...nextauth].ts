@@ -2,10 +2,11 @@ import NextAuth from 'next-auth/next';
 import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import crypto from 'crypto';
-import axios from 'axios';
+import type { NextAuthOptions } from 'next-auth';
+import api from '@/utils/AxiosInstance';
+import { IUser } from '@/interfaces/user';
 
-export default NextAuth({
+export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
             // The name to display on the sign in form (e.g. "Sign in with...")
@@ -15,26 +16,38 @@ export default NextAuth({
             // e.g. domain, username, password, 2FA token, etc.
             // You can pass any HTML attribute to the <input> tag through the object.
             credentials: {
-                email: { label: 'Email', type: 'text', placeholder: 'jsmith' },
+                identifier: { label: 'Email', type: 'text', placeholder: 'jsmith' },
                 password: { label: 'Password', type: 'password' },
             },
             async authorize(credentials, req) {
                 // Add logic here to look up the user from the credentials supplied
-                const user = {
-                    id: crypto.randomUUID(),
-                    name: credentials?.email.split('@')[0],
-                    email: credentials?.email,
-                    image: 'https://lh3.googleusercontent.com/a/AEdFTp6YC4TOaqCCXBisSB9W0mGx0pLhudS29KErj9j_ww=s96-c',
-                };
+                try {
+                    const { data: userData } = await api.post(
+                        'https://dev-api.indozone.id/auth/login',
+                        {
+                            identifier: credentials?.identifier,
+                            password: credentials?.password,
+                        },
+                    );
 
-                if (user) {
-                    // Any object returned will be saved in `user` property of the JWT
-                    return user;
-                } else {
-                    // If you return null then an error will be displayed advising the user to check their details.
-                    return null;
+                    if (userData?.response?.email) {
+                        // Any object returned will be saved in `user` property of the JWT
+                        let user: IUser = {
+                            ...userData.response,
+                            name:
+                                userData?.response?.firstName + ' ' + userData?.response?.lastName,
+                            image: userData?.response?.avatar,
+                        };
+                        return user;
+                    } else {
+                        // If you return null then an error will be displayed advising the user to check their details.
+                        throw new Error(JSON.stringify(userData?.message));
 
-                    // You can also Reject this callback with an Error thus the user will be sent to the error page with the error message as a query parameter
+                        // You can also Reject this callback with an Error thus the user will be sent to the error page with the error message as a query parameter
+                    }
+                } catch (error: any) {
+                    // console.log(error?.data?.message ?? error?.message);
+                    throw new Error(error?.data?.message ?? error?.message);
                 }
             },
         }),
@@ -49,22 +62,19 @@ export default NextAuth({
     ],
     secret: process.env.NEXTAUTH_SECRET,
     callbacks: {
-        session({ session, token, user }) {
-            session.user.token = token.id_token;
-            console.log(user);
-            return session; // The return type will match the one returned in `useSession()`
-        },
-        async jwt({ token, account, profile }) {
-            // Persist the OAuth access_token and or the user id to the token right after signin
-            if (account) {
-                token.id_token = account.id_token;
-            }
-            return token;
-        },
-        async signIn({ account, profile }) {
+        // async jwt({ token, account, profile, user, isNewUser }) {
+        //     console.log('jwt -', { user, token });
+        //     // Persist the OAuth access_token and or the user id to the token right after signin
+        //     return token;
+        // },
+        // session({ session, token, user }) {
+        //     console.log('session -', { user });
+        //     return session; // The return type will match the one returned in `useSession()`
+        // },
+        async signIn({ account, profile, user, credentials, email }) {
             if (account?.provider === 'google') {
                 try {
-                    let { data } = await axios.post('https://dev-api.indozone.id/auth/login', {
+                    let { data } = await api.post('https://dev-api.indozone.id/auth/login', {
                         type: 'google',
                         identifier: account?.id_token,
                     });
@@ -88,4 +98,6 @@ export default NextAuth({
         signOut: '/',
         error: '/error',
     },
-});
+};
+
+export default NextAuth(authOptions);

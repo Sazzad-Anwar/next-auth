@@ -1,13 +1,61 @@
 import Head from 'next/head';
 import Image from 'next/image';
-import { Inter } from '@next/font/google';
-import styles from '@/styles/Home.module.css';
 import { signOut, useSession, getSession } from 'next-auth/react';
 import Link from 'next/link';
 import { GetServerSideProps } from 'next';
+import Loader from '@/components/Loader';
+import { useEffect, useRef, useState } from 'react';
+import { IUser } from '@/interfaces/user';
+import useSWR from 'swr';
+import { Fetcher } from '@/utils/Fetcher';
+import axios from 'axios';
+import { IPost } from '@/interfaces/post';
+import Router, { useRouter } from 'next/router';
 
-export default function Home() {
+export default function Home({ posts }: { posts: IPost[] }) {
     let session = useSession();
+    let router = useRouter();
+    const userListRef = useRef<HTMLDivElement>(null);
+    let { data: userData } = useSWR('/auth/user', Fetcher);
+    let [startPage, setStartPage] = useState<number>(5);
+    const [loading, setLoading] = useState(false);
+    const startLoading = () => setLoading(true);
+    const stopLoading = () => setLoading(false);
+    let { data: postData } = useSWR('/https://jsonplaceholder.typicode.com/posts', Fetcher, {
+        fallbackData: posts,
+    });
+    const [postList, setPostList] = useState<IPost[]>([]);
+
+    let [user, setUser] = useState<IUser>();
+
+    useEffect(() => {
+        if (session) {
+            setUser(userData && userData.response);
+        }
+        let differentData = new Set([...postList, ...postData]);
+        if (posts[posts.length - 1].id !== postData[postData.length - 1].id) {
+            setPostList((post) => [...post, ...postData]);
+        } else {
+            setPostList(postData);
+        }
+        userListRef?.current?.scrollIntoView();
+    }, [postData, postList, posts, session, userData]);
+
+    // console.log({ posts }, { postData });
+
+    useEffect(() => {
+        // Router event handler
+        Router.events.on('routeChangeStart', startLoading);
+        Router.events.on('routeChangeComplete', stopLoading);
+        return () => {
+            Router.events.off('routeChangeStart', startLoading);
+            Router.events.off('routeChangeComplete', stopLoading);
+        };
+    }, []);
+
+    if (session.status === 'loading') {
+        return <Loader />;
+    }
 
     return (
         <div className="bg-gray-800 min-h-screen">
@@ -17,22 +65,24 @@ export default function Home() {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
-            <main className="bg-gray-800 min-h-screen flex justify-center items-center text-white">
-                <div className="w-[320px] mx-auto">
-                    <h1 className="text-white text-xl font-bold text-center mb-3">
-                        Next auth user
-                    </h1>
-                    <div className="flex items-center ring-2 ring-blue-800 rounded">
+            <main className="bg-gray-800 min-h-screen text-white">
+                <header className="mx-auto container flex justify-between py-3 sticky top-0 z-10 bg-gray-800">
+                    <div
+                        onClick={() => router.push('/profile')}
+                        className="flex items-center cursor-pointer"
+                    >
                         <Image
+                            className="rounded-full"
                             src={
                                 session.data?.user?.image ??
                                 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'
                             }
-                            height={80}
-                            width={80}
+                            height={44}
+                            width={44}
+                            priority
                             alt={session.data?.user?.name ?? 'guest-user'}
                         />
-                        <div className="ml-3 text-left p-2">
+                        <div className="ml-3 text-left">
                             <p className="text-lg font-bold mb-0">
                                 {session.data?.user?.name ?? 'Guest User'}
                             </p>
@@ -41,38 +91,109 @@ export default function Home() {
                             </p>
                         </div>
                     </div>
-                    {session?.data?.user ? (
+                    {session?.status === 'authenticated' ? (
                         <button
                             onClick={() => signOut()}
-                            className="rounded border w-full mt-3 px-5 py-3 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
+                            className="rounded border w-auto mt-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
                         >
                             Logout
                         </button>
                     ) : (
                         <Link
                             href="/login"
-                            className="rounded border mt-3 px-5 py-3 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
+                            className="rounded border w-auto mt-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
                         >
                             Login
                         </Link>
                     )}
-                </div>
+                </header>
+                <section className="mx-auto container grid grid-cols-3 gap-5">
+                    {postList.map((post: IPost) => (
+                        <div
+                            key={post.id + (Math.random() * 1000).toFixed()}
+                            className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3"
+                        >
+                            <h1 className="text-lg mb-1">#{post.id}</h1>
+                            <h2 className="text-xl mb-2 capitalize">{post.title}</h2>
+                            <p className="text-base capitalize">{post.body}</p>
+                        </div>
+                    ))}
+                    {loading ||
+                        (!postList.length && (
+                            <>
+                                <div className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3">
+                                    <div className="w-[4ch] h-5 bg-gray-800 mb-2 rounded" />
+                                    <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                    <div className="mt-5">
+                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                        <div className="w-[25ch] h-6 bg-gray-800 mb-2 rounded" />
+                                    </div>
+                                </div>
+                                <div className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3">
+                                    <div className="w-[4ch] h-5 bg-gray-800 mb-2 rounded" />
+                                    <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                    <div className="mt-5">
+                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                        <div className="w-[25ch] h-6 bg-gray-800 mb-2 rounded" />
+                                    </div>
+                                </div>
+                                <div className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3">
+                                    <div className="w-[4ch] h-5 bg-gray-800 mb-2 rounded" />
+                                    <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                    <div className="mt-5">
+                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
+                                        <div className="w-[25ch] h-6 bg-gray-800 mb-2 rounded" />
+                                    </div>
+                                </div>
+                            </>
+                        ))}
+                    <div ref={userListRef} />
+                </section>
+                <section
+                    onClick={() => {
+                        const path = router.pathname;
+                        const query = router.query;
+                        query.startPage = startPage.toString();
+                        router.push({
+                            pathname: path,
+                            query: router.query,
+                        });
+                        setStartPage((startPage) => startPage + 10);
+                        setPostList((post) => [...post, ...postData]);
+                    }}
+                    className="flex justify-center items-center"
+                >
+                    <button className="rounded border w-auto my-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center">
+                        See more
+                    </button>
+                </section>
             </main>
         </div>
     );
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ req }) => {
-    const session = await getSession({ req });
-    // if (!session) {
-    //     return {
-    //         redirect: {
-    //             destination: '/',
-    //             permanent: false,
-    //         },
-    //     };
-    // }
+export const getServerSideProps: GetServerSideProps = async (context) => {
+    let { query } = context;
+    const session = await getSession(context);
+    let posts;
+
+    try {
+        let { data } = await axios.get(
+            `https://jsonplaceholder.typicode.com/posts?_start=${query.startPage ?? 0}&_limit=10`,
+        );
+
+        posts = data;
+    } catch (error) {
+        console.log(error);
+    }
+
     return {
-        props: { session },
+        props: {
+            session,
+            posts,
+        },
     };
 };
