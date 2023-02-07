@@ -9,22 +9,27 @@ import { IUser } from '@/interfaces/user';
 import useSWR from 'swr';
 import { Fetcher } from '@/utils/Fetcher';
 import axios from 'axios';
-import { IPost } from '@/interfaces/post';
+import { IPost, IPostUser } from '@/interfaces/post';
 import Router, { useRouter } from 'next/router';
+import Post from '@/components/Post';
+import { Config } from '@/config/config';
+import AppLayout from '@/layout/AppLayout';
+import api from '@/utils/AxiosInstance';
+import Cookies from 'js-cookie';
 
-export default function Home({ posts }: { posts: IPost[] }) {
+export default function Home({ posts, users }: { posts: IPost[]; users: IPostUser[] }) {
     let session = useSession();
     let router = useRouter();
     const userListRef = useRef<HTMLDivElement>(null);
-    let { data: userData } = useSWR('/auth/user', Fetcher);
-    let [startPage, setStartPage] = useState<number>(5);
+    let { data: userData } = useSWR(
+        session?.status === 'authenticated' ? '/auth/user' : null,
+        Fetcher,
+    );
+    let [startPage, setStartPage] = useState<number>(20);
     const [loading, setLoading] = useState(false);
     const startLoading = () => setLoading(true);
     const stopLoading = () => setLoading(false);
-    let { data: postData } = useSWR('/https://jsonplaceholder.typicode.com/posts', Fetcher, {
-        fallbackData: posts,
-    });
-    const [postList, setPostList] = useState<IPost[]>([]);
+    const [postList, setPostList] = useState<IPost[]>(posts);
 
     let [user, setUser] = useState<IUser>();
 
@@ -32,16 +37,8 @@ export default function Home({ posts }: { posts: IPost[] }) {
         if (session) {
             setUser(userData && userData.response);
         }
-        let differentData = new Set([...postList, ...postData]);
-        if (posts[posts.length - 1].id !== postData[postData.length - 1].id) {
-            setPostList((post) => [...post, ...postData]);
-        } else {
-            setPostList(postData);
-        }
         userListRef?.current?.scrollIntoView();
-    }, [postData, postList, posts, session, userData]);
-
-    // console.log({ posts }, { postData });
+    }, [postList, posts, session, userData]);
 
     useEffect(() => {
         // Router event handler
@@ -52,6 +49,12 @@ export default function Home({ posts }: { posts: IPost[] }) {
             Router.events.off('routeChangeComplete', stopLoading);
         };
     }, []);
+
+    const logout = async () => {
+        await api.get('/auth/logout');
+        Cookies.remove('token');
+        signOut();
+    };
 
     if (session.status === 'loading') {
         return <Loader />;
@@ -65,127 +68,100 @@ export default function Home({ posts }: { posts: IPost[] }) {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
-            <main className="bg-gray-800 min-h-screen text-white">
-                <header className="mx-auto container flex justify-between py-3 sticky top-0 z-10 bg-gray-800">
-                    <div
-                        onClick={() => router.push('/profile')}
-                        className="flex items-center cursor-pointer"
-                    >
-                        <Image
-                            className="rounded-full"
-                            src={
-                                session.data?.user?.image ??
-                                'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'
-                            }
-                            height={44}
-                            width={44}
-                            priority
-                            alt={session.data?.user?.name ?? 'guest-user'}
-                        />
-                        <div className="ml-3 text-left">
-                            <p className="text-lg font-bold mb-0">
-                                {session.data?.user?.name ?? 'Guest User'}
-                            </p>
-                            <p className="text-sm font-medium mt-0">
-                                {session.data?.user?.email ?? 'example@email.com'}
-                            </p>
-                        </div>
-                    </div>
-                    {session?.status === 'authenticated' ? (
-                        <button
-                            onClick={() => signOut()}
-                            className="rounded border w-auto mt-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
-                        >
-                            Logout
-                        </button>
-                    ) : (
-                        <Link
-                            href="/login"
-                            className="rounded border w-auto mt-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
-                        >
-                            Login
-                        </Link>
-                    )}
-                </header>
-                <section className="mx-auto container grid grid-cols-3 gap-5">
-                    {postList.map((post: IPost) => (
+            <AppLayout>
+                <header className="bg-gray-900 py-3 sticky top-0 z-10 text-white">
+                    <div className="container mx-auto flex justify-between">
                         <div
-                            key={post.id + (Math.random() * 1000).toFixed()}
-                            className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3"
+                            onClick={() => router.push('/profile')}
+                            className="flex items-center cursor-pointer"
                         >
-                            <h1 className="text-lg mb-1">#{post.id}</h1>
-                            <h2 className="text-xl mb-2 capitalize">{post.title}</h2>
-                            <p className="text-base capitalize">{post.body}</p>
+                            <Image
+                                className="rounded-full ring-2"
+                                src={
+                                    (session?.status === 'authenticated' && user?.avatar
+                                        ? Config.bucketLink + '/' + user?.avatar
+                                        : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png') ??
+                                    'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'
+                                }
+                                height={44}
+                                width={44}
+                                priority
+                                alt={user?.firstName ?? 'guest-user'}
+                            />
+                            <div className="ml-3 text-left">
+                                <p className="text-lg font-bold mb-0">
+                                    {user?.firstName || user?.lastName
+                                        ? user?.firstName + ' ' + user?.lastName
+                                        : 'Guest User'}
+                                </p>
+                                <p className="text-sm font-medium mt-0">
+                                    {session.data?.user?.email ?? 'example@email.com'}
+                                </p>
+                            </div>
                         </div>
-                    ))}
-                    {loading ||
-                        (!postList.length && (
-                            <>
-                                <div className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3">
-                                    <div className="w-[4ch] h-5 bg-gray-800 mb-2 rounded" />
-                                    <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                    <div className="mt-5">
-                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                        <div className="w-[25ch] h-6 bg-gray-800 mb-2 rounded" />
-                                    </div>
-                                </div>
-                                <div className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3">
-                                    <div className="w-[4ch] h-5 bg-gray-800 mb-2 rounded" />
-                                    <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                    <div className="mt-5">
-                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                        <div className="w-[25ch] h-6 bg-gray-800 mb-2 rounded" />
-                                    </div>
-                                </div>
-                                <div className="rounded-md px-4 py-3 bg-gray-900 text-white mb-3">
-                                    <div className="w-[4ch] h-5 bg-gray-800 mb-2 rounded" />
-                                    <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                    <div className="mt-5">
-                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                        <div className="w-[50ch] h-6 bg-gray-800 mb-2 rounded" />
-                                        <div className="w-[25ch] h-6 bg-gray-800 mb-2 rounded" />
-                                    </div>
-                                </div>
-                            </>
+                        {session?.status === 'authenticated' ? (
+                            <button
+                                onClick={() => logout()}
+                                className="rounded border w-auto mt-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
+                            >
+                                Logout
+                            </button>
+                        ) : (
+                            <Link
+                                href="/login"
+                                className="rounded border w-auto mt-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center"
+                            >
+                                Login
+                            </Link>
+                        )}
+                    </div>
+                </header>
+                <main className="bg-gray-800 min-h-screen text-white mt-10">
+                    <section className="mx-auto container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {postList.map((post: IPost) => (
+                            <Post key={post.title} post={post} users={users} />
                         ))}
-                    <div ref={userListRef} />
-                </section>
-                <section
-                    onClick={() => {
-                        const path = router.pathname;
-                        const query = router.query;
-                        query.startPage = startPage.toString();
-                        router.push({
-                            pathname: path,
-                            query: router.query,
-                        });
-                        setStartPage((startPage) => startPage + 10);
-                        setPostList((post) => [...post, ...postData]);
-                    }}
-                    className="flex justify-center items-center"
-                >
-                    <button className="rounded border w-auto my-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center">
-                        See more
-                    </button>
-                </section>
-            </main>
+                    </section>
+                    <section
+                        onClick={() => {
+                            setStartPage((startPage) => startPage + 10);
+                            const path = router.pathname;
+                            const query = router.query;
+                            query.startPage = startPage.toString();
+                            router.push({
+                                pathname: path,
+                                query: router.query,
+                            });
+                            setPostList(posts);
+                        }}
+                        className="flex justify-center items-center"
+                    >
+                        <button className="rounded border w-auto my-3 px-5 py-2 border-blue-500 bg-blue-800 text-white hover:bg-blue-900 flex items-center justify-center">
+                            See more
+                        </button>
+                        <div ref={userListRef} />
+                    </section>
+                </main>
+            </AppLayout>
         </div>
     );
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-    let { query } = context;
+    let { query, res } = context;
     const session = await getSession(context);
     let posts;
+    let users;
+    res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=59');
 
     try {
         let { data } = await axios.get(
             `https://jsonplaceholder.typicode.com/posts?_start=${query.startPage ?? 0}&_limit=10`,
         );
+        let { data: usersData } = await axios.get(`https://jsonplaceholder.typicode.com/users`);
 
         posts = data;
+        users = usersData;
     } catch (error) {
         console.log(error);
     }
@@ -194,6 +170,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         props: {
             session,
             posts,
+            users,
         },
     };
 };

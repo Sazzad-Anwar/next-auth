@@ -2,9 +2,8 @@ import Loader from '@/components/Loader';
 import { signIn, useSession } from 'next-auth/react';
 import Head from 'next/head';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Resolver } from 'react-hook-form';
 
 type LoginFormType = {
@@ -63,9 +62,17 @@ export default function Login() {
         }
     });
 
+    useEffect(() => {
+        if (session?.status === 'authenticated') {
+            router.push('/');
+        }
+    }, [router, session]);
+
     const googleLogin = async () => {
         try {
-            await signIn('google', { callbackUrl: 'http://localhost:3000' });
+            await signIn('google', {
+                callbackUrl: 'http://localhost:3000',
+            });
         } catch (error) {
             console.log(error);
         }
@@ -79,9 +86,6 @@ export default function Login() {
         }
     };
 
-    if (session?.status === 'authenticated') {
-        router.push('/');
-    }
     if (session?.status === 'unauthenticated') {
         return (
             <>
@@ -182,6 +186,21 @@ export default function Login() {
                         >
                             Back
                         </button>
+
+                        <div className="flex items-center my-3">
+                            <div className="w-full h-px bg-gray-200 rounded mt-px" />
+                            <span className="text-white font-bold text-base px-2">or</span>
+                            <div className="w-full h-px bg-gray-200 rounded mt-px" />
+                        </div>
+
+                        <div className="mb-5">
+                            <button
+                                onClick={() => router.push('/signup')}
+                                className="rounded border w-full py-3 border-blue-500 bg-blue-800 text-white hover:bg-blue-900"
+                            >
+                                Sign up
+                            </button>
+                        </div>
                     </div>
                 </div>
             </>

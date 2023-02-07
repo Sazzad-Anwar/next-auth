@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_BUCKET_LINK_DEV: process.env.NEXT_PUBLIC_BUCKET_LINK_DEV
+  },
   images: {
     remotePatterns: [
       {

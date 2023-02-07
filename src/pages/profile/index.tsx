@@ -9,6 +9,7 @@ import api from '@/utils/AxiosInstance';
 import { IUser } from '@/interfaces/user';
 import useSWR from 'swr';
 import { Fetcher } from '@/utils/Fetcher';
+import { Config } from '@/config/config';
 
 export default function Profile() {
     let session = useSession();
@@ -46,8 +47,9 @@ export default function Profile() {
                         <Image
                             className="rounded"
                             src={
-                                session.data?.user?.image ??
-                                'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'
+                                session?.status === 'authenticated' && user?.avatar
+                                    ? Config.bucketLink + '/' + user?.avatar
+                                    : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'
                             }
                             height={79}
                             width={79}
@@ -56,13 +58,13 @@ export default function Profile() {
                         />
                         <div className="ml-3 text-left">
                             <p className="text-lg font-bold mb-0">
-                                {session.data?.user?.name ?? 'Guest User'}
+                                {user?.firstName + ' ' + user?.lastName ?? 'Guest User'}
                             </p>
                             <p className="text-sm font-medium mt-0">
-                                {session.data?.user?.email ?? 'example@email.com'}
+                                {user?.email ?? 'example@email.com'}
                             </p>
                             <span className="text-xs font-medium mt-0 px-2 rounded-full py-px bg-gray-900">
-                                {user?.roleSlug ?? 'Guest'}
+                                {user?.roleSlug.toUpperCase() ?? 'Guest'}
                             </span>
                         </div>
                     </div>
