@@ -15,15 +15,12 @@ export default function SignUp() {
         Fetcher,
     );
 
-    console.log(userData && userData?.response);
-
     const googleLogin = async () => {
         try {
             let data = await signIn(
                 'google',
                 {
-                    // callbackUrl: 'http://localhost:3000/set-profile',
-                    redirect: false,
+                    callbackUrl: process.env.NEXTAUTH_URL,
                 },
                 { prompt: 'login' },
             );
@@ -36,7 +33,7 @@ export default function SignUp() {
 
     const facebookLogin = async () => {
         try {
-            await signIn('facebook', { callbackUrl: 'http://localhost:3000' });
+            await signIn('facebook', { callbackUrl: process.env.NEXTAUTH_URL });
         } catch (error) {
             console.log(error);
         }

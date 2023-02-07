@@ -49,7 +49,7 @@ export default function Login() {
                 identifier: data.identifier,
                 password: data.password,
                 redirect: false,
-                callbackUrl: 'http://localhost:3000',
+                callbackUrl: process.env.NEXTAUTH_URL,
             });
             if (loginData?.ok) {
                 router.push('/');
@@ -71,7 +71,7 @@ export default function Login() {
     const googleLogin = async () => {
         try {
             await signIn('google', {
-                callbackUrl: 'http://localhost:3000',
+                callbackUrl: process.env.NEXTAUTH_URL,
             });
         } catch (error) {
             console.log(error);
@@ -80,7 +80,7 @@ export default function Login() {
 
     const facebookLogin = async () => {
         try {
-            await signIn('facebook', { callbackUrl: 'http://localhost:3000' });
+            await signIn('facebook', { callbackUrl: process.env.NEXTAUTH_URL });
         } catch (error) {
             console.log(error);
         }
