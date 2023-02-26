@@ -18,8 +18,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         Fetcher,
     );
 
-    console.log(Cookies.get('token'), '<== token');
-
     useEffect(() => {
         if (session?.status === 'authenticated' && !Cookies.get('token')) {
             router.push('/profile/save');

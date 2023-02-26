@@ -2,15 +2,12 @@ import NextAuth from 'next-auth/next';
 import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import type { NextAuthOptions } from 'next-auth';
+import Cookies from 'js-cookie';
 import api from '@/utils/AxiosInstance';
 import { IUser } from '@/interfaces/user';
 import { NextApiRequest, NextApiResponse } from 'next';
-import Cookies from 'js-cookie';
 
 export default async function auth(req: NextApiRequest, res: NextApiResponse) {
-    console.log(req.cookies);
-
     return await NextAuth(req, res, {
         providers: [
             CredentialsProvider({
@@ -64,21 +61,6 @@ export default async function auth(req: NextApiRequest, res: NextApiResponse) {
             GoogleProvider({
                 clientId: process.env.GOOGLE_CLIENT_ID!,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-                // async profile(profile, tokens) {
-                //     try {
-                //         let { data } = await api.post('https://dev-api.indozone.id/auth/login', {
-                //             type: 'google',
-                //             identifier: tokens?.id_token,
-                //         });
-                //         if (data?.response?.id) {
-                //             return data?.response;
-                //         }
-                //         console.log(profile);
-                //         return profile;
-                //     } catch (error: any) {
-                //         console.log(error?.response?.message ?? error?.message);
-                //     }
-                // },
             }),
             FacebookProvider({
                 clientId: process.env.FACEBOOK_CLIENT_ID!,
@@ -88,22 +70,22 @@ export default async function auth(req: NextApiRequest, res: NextApiResponse) {
         secret: process.env.NEXTAUTH_SECRET,
         callbacks: {
             async signIn({ account, profile, user, credentials, email }) {
+                console.log(account?.id_token);
                 if (account?.provider === 'google') {
                     try {
                         let { data } = await api.post('https://dev-api.indozone.id/auth/login', {
                             type: 'google',
                             identifier: account?.id_token,
                         });
-                        console.log(account?.id_token);
                         if (data?.response?.id) {
                             Cookies.set('token', data?.response?.token, {
                                 expires: 7,
                             });
-                            res.setHeader('Set-Cookie', ['token=token']);
                         }
                         return true;
                     } catch (error: any) {
-                        throw new Error(error?.response?.message ?? error?.message);
+                        console.log(error);
+                        throw new Error(error?.message);
                     }
                 }
                 return true;
